@@ -4,6 +4,7 @@ z3_add_component(muz
     dl_boogie_proof.cpp
     dl_context.cpp
     dl_costs.cpp
+    dl_func.cpp
     dl_rule.cpp
     dl_rule_set.cpp
     dl_rule_subsumption_index.cpp

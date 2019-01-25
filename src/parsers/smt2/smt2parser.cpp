@@ -70,7 +70,7 @@ namespace smt2 {
         scoped_ptr<bv_util>               m_bv_util;
         scoped_ptr<arith_util>            m_arith_util;
         scoped_ptr<datatype_util>         m_datatype_util;
-        scoped_ptr<seq_util>              m_seq_util;      
+        scoped_ptr<seq_util>              m_seq_util;
         scoped_ptr<pattern_validator>     m_pattern_validator;
         scoped_ptr<var_shifter>           m_var_shifter;
 
@@ -635,7 +635,7 @@ namespace smt2 {
             symbol id = curr_id();
             psort_decl * d = m_ctx.find_psort_decl(id);
             if (d == nullptr) {
-                unknown_sort(id);                                
+                unknown_sort(id);
             }
             next();
             void * mem      = m_stack.allocate(sizeof(psort_frame));
@@ -771,7 +771,7 @@ namespace smt2 {
         unsigned parse_symbols() {
             unsigned sz = 0;
             check_lparen_next("invalid list of symbols, '(' expected");
-            while (!curr_is_rparen()) {                
+            while (!curr_is_rparen()) {
                 m_symbol_stack.push_back(check_identifier_next("invalid list of symbols, symbol or ')' expected"));
                 sz++;
             }
@@ -806,7 +806,7 @@ namespace smt2 {
             while (!curr_is_rparen()) {
                 check_lparen_next("invalid datatype declaration, '(' or ')' expected");
                 symbol a_name = check_identifier_next("invalid accessor declaration, symbol (accessor name) expected");
-                if (curr_is_identifier()) {                    
+                if (curr_is_identifier()) {
                     a_decls.push_back(pm().mk_paccessor_decl(m_sort_id2param_idx.size(), a_name, parse_ptype()));
                 }
                 else {
@@ -847,7 +847,7 @@ namespace smt2 {
             if (ct_decls.empty())
                 throw parser_exception("invalid datatype declaration, datatype does not have any constructors");
         }
-        
+
         void parse_declare_datatypes() {
             SASSERT(curr_is_identifier());
             SASSERT(curr_id() == m_declare_datatypes);
@@ -859,7 +859,7 @@ namespace smt2 {
             unsigned i = 0;
             pdatatype_decl_ref_buffer new_dt_decls(pm());
             check_lparen_next("invalid datatype declaration, '(' expected");
-            pdatatype_decl_ref d(pm());                
+            pdatatype_decl_ref d(pm());
             while (!curr_is_rparen()) {
                 pconstructor_decl_ref_buffer new_ct_decls(pm());
                 if (is_smt2_6) {
@@ -918,14 +918,14 @@ namespace smt2 {
                     // datatypes are inserted up front in SMT2.6 mode, so no need to re-insert them.
                     m_ctx.insert(d);
                 }
-            }                
+            }
             TRACE("declare_datatypes", tout << "i: " << i << " new_dt_decls.size(): " << sz << "\n";
                   for (unsigned j = 0; j < new_dt_decls.size(); ++j) tout << new_dt_decls[j]->get_name() << "\n";);
             m_ctx.print_success();
             next();
         }
 
-        // ( declare-datatype symbol datatype_dec) 
+        // ( declare-datatype symbol datatype_dec)
         void parse_declare_datatype() {
             SASSERT(curr_is_identifier());
             SASSERT(curr_id() == m_declare_datatype);
@@ -940,11 +940,11 @@ namespace smt2 {
 
             m_sort_id2param_idx.reset();
 
-            pdatatype_decl_ref d(pm());                
+            pdatatype_decl_ref d(pm());
             pconstructor_decl_ref_buffer new_ct_decls(pm());
             parse_datatype_dec(&dt_name, new_ct_decls);
             d = pm().mk_pdatatype_decl(m_sort_id2param_idx.size(), dt_name, new_ct_decls.size(), new_ct_decls.c_ptr());
-            
+
             check_missing(d, line, pos);
             check_duplicate(d, line, pos);
 
@@ -1076,7 +1076,7 @@ namespace smt2 {
                 fr->m_last_symbol = symbol::null;
                 TRACE("consume_attributes", tout << "id: " << id << ", expr_stack().size(): " << expr_stack().size() << "\n";);
                 if (id == m_named) {
-                    next();                    
+                    next();
                     name_expr(expr_stack().back(), check_identifier_next("invalid attribute value, symbol expected"));
                 }
                 else if (id == m_lblpos || id == m_lblneg) {
@@ -1098,7 +1098,7 @@ namespace smt2 {
                 }
                 else if (id == m_skid) {
                     check_in_quant_ctx(fr);
-                    next();                    
+                    next();
                     store_skid(fr, check_identifier_next("invalid attribute value, symbol expected"));
                 }
                 else if (id == m_qid) {
@@ -1316,8 +1316,16 @@ namespace smt2 {
         }
 
         /**
+         * (lambda  ((p1 s1) ... (pm+1 sm+1)) t)
+         */
+        void push_lambda_frame() {
+
+        }
+
+
+        /**
          * SMT-LIB 2.6 pattern matches are of the form
-         * (match t ((p1 t1) ... (pm+1 tm+1)))         
+         * (match t ((p1 t1) ... (pm+1 tm+1)))
          */
         void push_match_frame() {
             SASSERT(curr_is_identifier());
@@ -1338,7 +1346,7 @@ namespace smt2 {
                 m_env.begin_scope();
                 unsigned num_bindings = m_num_bindings;
                 check_lparen_next("invalid pattern binding, '(' expected");
-                parse_match_pattern(srt);  
+                parse_match_pattern(srt);
                 patterns.push_back(expr_stack().back());
                 expr_stack().pop_back();
                 parse_expr();
@@ -1389,18 +1397,18 @@ namespace smt2 {
         }
 
         void check_patterns(expr_ref_vector const& patterns, sort* s) {
-            if (!dtutil().is_datatype(s)) 
+            if (!dtutil().is_datatype(s))
                 throw parser_exception("pattern matching is only supported for algebraic datatypes");
             ptr_vector<func_decl> const& cons = *dtutil().get_datatype_constructors(s);
             for (expr * arg : patterns) if (is_var(arg)) return;
-            if (patterns.size() < cons.size()) 
+            if (patterns.size() < cons.size())
                 throw parser_exception("non-exhaustive pattern match");
             ast_fast_mark1 marked;
-            for (expr * arg : patterns) 
+            for (expr * arg : patterns)
                 marked.mark(to_app(arg)->get_decl(), true);
-            for (func_decl * f : cons) 
-                if (!marked.is_marked(f)) 
-                    throw parser_exception("a constructor is missing from pattern match");        
+            for (func_decl * f : cons)
+                if (!marked.is_marked(f))
+                    throw parser_exception("a constructor is missing from pattern match");
         }
 
         // compute match condition and substitution
@@ -1445,17 +1453,17 @@ namespace smt2 {
                 symbol v(check_identifier_next("variable symbol expected"));
                 if (v != m_underscore && vars.contains(v)) {
                     throw parser_exception("unexpected repeated variable in pattern expression");
-                } 
+                }
                 vars.push_back(v);
-            }                
+            }
             next();
-            
+
             // now have C, vars
-            // look up constructor C, 
+            // look up constructor C,
             // create bound variables based on constructor type.
             // store expression in expr_stack().
             // ensure that bound variables are adjusted to vars
-            
+
             func_decl* f = m_ctx.find_func_decl(C, 0, nullptr, vars.size(), nullptr, srt);
             if (!f) {
                 throw parser_exception("expecting a constructor that has been declared");
@@ -1483,14 +1491,14 @@ namespace smt2 {
                 // done
             }
             else if (curr_id() == m_underscore) {
-                // we have a wild-card.                
+                // we have a wild-card.
                 // store dummy variable in expr_stack()
                 next();
                 var* v = m().mk_var(0, srt);
                 expr_stack().push_back(v);
             }
             else {
-                symbol xC(check_identifier_next("constructor symbol or variable expected"));            
+                symbol xC(check_identifier_next("constructor symbol or variable expected"));
                 // check if xC is a constructor, otherwise make it a variable
                 // of sort srt.
                 try {
@@ -1506,7 +1514,7 @@ namespace smt2 {
                 catch (cmd_exception &) {
                     var* v = m().mk_var(0, srt);
                     expr_stack().push_back(v);
-                    m_env.insert(xC, local(v, m_num_bindings++));            
+                    m_env.insert(xC, local(v, m_num_bindings++));
                 }
             }
         }
@@ -1802,7 +1810,7 @@ namespace smt2 {
             new (mem) app_frame(f, expr_spos, param_spos, has_as);
             m_num_expr_frames++;
         }
-        
+
         void push_expr_frame(expr_frame * curr) {
             SASSERT(curr_is_lparen());
             next();
@@ -2105,7 +2113,7 @@ namespace smt2 {
                 i++;
                 next();
             }
-            next();            
+            next();
         }
 
         bool parse_sort_decl_or_params() {
@@ -2120,7 +2128,7 @@ namespace smt2 {
             while (!curr_is_rparen()) {
                 if (first) {
                     is_decl = curr_is_lparen();
-                    first = false;                    
+                    first = false;
                 }
                 if (is_decl) {
                     check_lparen_next("invalid sort declaration, '(' expected");
@@ -2142,7 +2150,7 @@ namespace smt2 {
                 i++;
                 next();
             }
-            next(); 
+            next();
             return is_decl;
         }
 

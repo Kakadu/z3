@@ -126,7 +126,7 @@ public:
     sort * instantiate(pdecl_manager & m, unsigned n, sort * const * s) override;
     void display(std::ostream & out) const override;
 };
- 
+
 class psort_builtin_decl : public psort_decl {
 protected:
     friend class pdecl_manager;
@@ -183,6 +183,7 @@ public:
     void display(std::ostream & out, pdatatype_decl const * const * dts) const;
 };
 
+// проекция алгебрического типа
 class paccessor_decl : public pdecl {
     friend class pdecl_manager;
     friend class pconstructor_decl;
@@ -261,10 +262,11 @@ public:
     pdatatype_decl const * const * children() const { return m_datatypes.c_ptr(); }
     pdatatype_decl * const * begin() const { return m_datatypes.begin(); }
     pdatatype_decl * const * end() const { return m_datatypes.end(); }
-    // commit declaration 
+    // commit declaration
     bool commit(pdecl_manager& m);
 };
 
+// new_datatype event handler
 class new_datatype_eh {
 public:
     virtual ~new_datatype_eh() {}
