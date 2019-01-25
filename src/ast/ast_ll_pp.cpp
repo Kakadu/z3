@@ -6,9 +6,9 @@ Module Name:
     ast_ll_pp.cpp
 
 Abstract:
- 
+
     AST low level pretty printer.
-    
+
 Author:
 
     Leonardo de Moura (leonardo) 2006-10-19.
@@ -45,7 +45,7 @@ class ll_printer {
         symbol n = decl->get_name();
         if (decl->is_skolem() && n.is_numerical())
             m_out << "z3.sk." << n.get_num();
-        else 
+        else
             m_out << n;
     }
 
@@ -63,7 +63,7 @@ class ll_printer {
         m_out << s->get_name();
         display_params(s);
     }
-        
+
     void display_child(ast * n) {
         switch (n->get_kind()) {
         case AST_SORT:
@@ -175,7 +175,7 @@ public:
         }
         m_out << "\n";
     }
-        
+
     void operator()(var * n) {
         display_def_header(n);
         m_out << "(:var " << to_var(n)->get_idx() << " ";
@@ -185,7 +185,7 @@ public:
 
     void operator()(app * n) {
         if (m_autil.is_numeral(n)) {
-            if (!m_compact) 
+            if (!m_compact)
                 display_def_header(n);
             if (n == m_root || !m_compact) {
                 process_numeral(n);
@@ -210,7 +210,7 @@ public:
                 // display(m_manager.get_fact(n), 6);
                 display_child(m_manager.get_fact(n));
             }
-            else 
+            else
                 m_out << "*";
             m_out << "\n";
         }
@@ -235,7 +235,7 @@ public:
             if (to_app(n)->get_family_id() != null_family_id) {
                 m_out << " family: " << m_manager.get_family_name(to_app(n)->get_family_id());
             }
-#endif        
+#endif
             m_out << "\n";
         }
     }
@@ -243,6 +243,34 @@ public:
     void operator()(quantifier * n) {
         display_def_header(n);
         m_out << "(" << (n->is_forall() ? "forall" : "exists") << " ";
+        unsigned num_decls = n->get_num_decls();
+        m_out << "(vars ";
+        for (unsigned i = 0; i < num_decls; i++) {
+            if (i > 0) {
+                m_out << " ";
+            }
+            m_out << "(" << n->get_decl_name(i) << " ";
+            display_sort(n->get_decl_sort(i));
+            m_out << ")";
+        }
+        m_out << ") ";
+        if (n->get_num_patterns() > 0) {
+            m_out << "(:pat ";
+            display_children(n->get_num_patterns(), n->get_patterns());
+            m_out << ") ";
+        }
+        if (n->get_num_no_patterns() > 0) {
+            m_out << "(:nopat ";
+            display_children(n->get_num_no_patterns(), n->get_no_patterns());
+            m_out << ") ";
+        }
+        display_child(n->get_expr());
+        m_out << ")\n";
+    }
+
+    void operator()(lambda * n) {
+        display_def_header(n);
+        m_out << "(lambda ";
         unsigned num_decls = n->get_num_decls();
         m_out << "(vars ";
         for (unsigned i = 0; i < num_decls; i++) {
@@ -283,7 +311,7 @@ public:
             return;
         }
         unsigned num_args = to_app(n)->get_num_args();
-        if (num_args > 0) 
+        if (num_args > 0)
             m_out << "(";
         display_name(to_app(n)->get_decl());
         display_params(to_app(n)->get_decl());

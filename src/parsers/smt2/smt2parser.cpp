@@ -111,6 +111,7 @@ namespace smt2 {
         symbol               m_define_fun_rec;
         symbol               m_define_funs_rec;
         symbol               m_match;
+        symbol               m_lambda;
         symbol               m_underscore;
 
         typedef std::pair<symbol, expr*> named_expr;
@@ -138,7 +139,7 @@ namespace smt2 {
 
         typedef psort_frame sort_frame;
 
-        enum expr_frame_kind { EF_APP, EF_LET, EF_LET_DECL, EF_MATCH, EF_QUANT, EF_ATTR_EXPR, EF_PATTERN };
+        enum expr_frame_kind { EF_APP, EF_LET, EF_LET_DECL, EF_MATCH, EF_LAMBDA, EF_QUANT, EF_ATTR_EXPR, EF_PATTERN };
 
         struct expr_frame {
             expr_frame_kind m_kind;
@@ -177,6 +178,26 @@ namespace smt2 {
 
         struct match_frame : public expr_frame {
             match_frame():expr_frame(EF_MATCH) {}
+        };
+
+        // The same as quantifier frame
+        // I don't know is it reasonable to put to separate class.
+        // Alternative: set quant_frame::m_forall to three element set
+        struct lambda_frame : public expr_frame {
+            symbol   m_qid;
+            symbol   m_skid;
+            unsigned m_weight;
+            unsigned m_pat_spos;
+            unsigned m_nopat_spos;
+            unsigned m_sym_spos;
+            unsigned m_sort_spos;
+            unsigned m_expr_spos;
+            lambda_frame(unsigned pat_spos, unsigned nopat_spos, unsigned sym_spos, unsigned sort_spos,
+                         unsigned expr_spos):
+                expr_frame(EF_LAMBDA), m_weight(1),
+                m_pat_spos(pat_spos), m_nopat_spos(nopat_spos),
+                m_sym_spos(sym_spos), m_sort_spos(sort_spos),
+                m_expr_spos(expr_spos) {}
         };
 
         struct let_frame : public expr_frame {
@@ -403,6 +424,7 @@ namespace smt2 {
         bool curr_id_is_underscore() const { SASSERT(curr_is_identifier()); return curr_id() == m_underscore; }
         bool curr_id_is_as() const { SASSERT(curr_is_identifier()); return curr_id() == m_as; }
         bool curr_id_is_match() const { SASSERT(curr_is_identifier()); return curr_id() == m_match; }
+        bool curr_id_is_lambda() const { SASSERT(curr_is_identifier()); return curr_id() == m_lambda; }
         bool curr_id_is_forall() const { SASSERT(curr_is_identifier()); return curr_id() == m_forall; }
         bool curr_id_is_exists() const { SASSERT(curr_is_identifier()); return curr_id() == m_exists; }
         bool curr_id_is_bang() const { SASSERT(curr_is_identifier()); return curr_id() == m_bang; }
@@ -1316,10 +1338,23 @@ namespace smt2 {
         }
 
         /**
-         * (lambda  ((p1 s1) ... (pm+1 sm+1)) t)
+         * (lambda  ((e1 s1) ... (em+1 sm+1)) t)
          */
         void push_lambda_frame() {
+            // TODO:
+            SASSERT(curr_is_identifier() );
+            SASSERT(curr_id_is_lambda() );
 
+            next();
+            void * mem      = m_stack.allocate(sizeof(lambda_frame));
+            new (mem) lambda_frame( pattern_stack().size(), nopattern_stack().size(), symbol_stack().size(),
+                                    sort_stack().size(), expr_stack().size() );
+
+            m_num_expr_frames++;
+            unsigned num_vars = parse_sorted_vars();
+            if (num_vars == 0)
+                throw parser_exception("invalid lambda, list of sorted variables is empty");
+            // and now parse body
         }
 
 
@@ -1336,10 +1371,12 @@ namespace smt2 {
             unsigned num_frames = m_num_expr_frames;
 
             parse_expr();
-            expr_ref t(expr_stack().back(), m());
+            expr_ref sqrutinee(expr_stack().back(), m());
             expr_stack().pop_back();
-            expr_ref_vector patterns(m()), cases(m());
-            sort* srt = m().get_sort(t);
+
+            expr_ref_vector patterns(m());
+            expr_ref_vector cases(m());
+            sort* srt = m().get_sort(sqrutinee);
 
             check_lparen_next("pattern bindings should be enclosed in a parenthesis");
             while (!curr_is_rparen()) {
@@ -1358,7 +1395,7 @@ namespace smt2 {
             }
             next();
             m_num_expr_frames = num_frames + 1;
-            expr_stack().push_back(compile_patterns(t, patterns, cases));
+            expr_stack().push_back(compile_patterns(sqrutinee, patterns, cases));
         }
 
         void pop_match_frame(match_frame* fr) {
@@ -1838,6 +1875,9 @@ namespace smt2 {
                 else if (curr_id_is_match()) {
                     push_match_frame();
                 }
+                else if (curr_id_is_lambda()) {
+                    push_lambda_frame();
+                }
                 else {
                     push_app_frame();
                 }
@@ -1910,6 +1950,68 @@ namespace smt2 {
                 m_stack.deallocate(fr);
                 m_num_expr_frames--;
             }
+        }
+
+        void pop_lambda_frame(lambda_frame* fr) {
+            SASSERT(pattern_stack().size() >= fr->m_pat_spos);
+            SASSERT(nopattern_stack().size() >= fr->m_nopat_spos);
+            SASSERT(symbol_stack().size() >= fr->m_sym_spos);
+            SASSERT(sort_stack().size() >= fr->m_sort_spos);
+            SASSERT(symbol_stack().size() - fr->m_sym_spos == sort_stack().size() - fr->m_sort_spos);
+            SASSERT(expr_stack().size() >= fr->m_expr_spos);
+            unsigned num_decls  = sort_stack().size() - fr->m_sort_spos;
+            if (expr_stack().size() - fr->m_expr_spos != num_decls /* variables */ + 1 /* result */)
+                throw parser_exception("invalid lambda expression, syntax error: (lambda ((<symbol> <sort>)*) <expr>) expected");
+            unsigned begin_pats = fr->m_pat_spos;
+            unsigned end_pats   = pattern_stack().size();
+            unsigned j = begin_pats;
+            for (unsigned i = begin_pats; i < end_pats; i++) {
+                expr * pat = pattern_stack().get(i);
+                if (!pat_validator()(num_decls, pat, m_scanner.get_line(), m_scanner.get_pos())) {
+                    if (!ignore_bad_patterns())
+                        throw parser_exception("invalid pattern");
+                    continue;
+                }
+                pattern_stack().set(j, pat);
+                j++;
+            }
+            end_pats = j;
+            pattern_stack().shrink(end_pats);
+            unsigned num_pats   = end_pats - begin_pats;
+            unsigned num_nopats = nopattern_stack().size() - fr->m_nopat_spos;
+            TRACE("parse_lambda", tout << "weight: " << fr->m_weight << "\n";);
+            TRACE("skid", tout << "fr->m_skid: " << fr->m_skid << "\n";);
+            TRACE("parse_lambda", tout << "body:\n" << mk_pp(expr_stack().back(), m()) << "\n";);
+            if (fr->m_qid == symbol::null)
+                fr->m_qid = symbol(m_scanner.get_line());
+
+//            if (!m().is_bool(expr_stack().back()))
+//                throw parser_exception("quantifier body must be a Boolean expression");
+
+            lambda     * new_q = m().mk_lambda    (num_decls,
+                                                   sort_stack().c_ptr() + fr->m_sort_spos,
+                                                   symbol_stack().c_ptr() + fr->m_sym_spos,
+                                                   expr_stack().back(),
+                                                   fr->m_weight,
+                                                   fr->m_qid,
+                                                   fr->m_skid,
+                                                   num_pats, pattern_stack().c_ptr() + fr->m_pat_spos,
+                                                   num_nopats, nopattern_stack().c_ptr() + fr->m_nopat_spos
+                                                   );
+            TRACE("mk_quantifier", tout << "id: " << new_q->get_id() << "\n" << mk_ismt2_pp(new_q, m()) << "\n";);
+            TRACE("skid", tout << "new_q->skid: " << new_q->get_skid() << "\n";);
+            expr_stack().shrink(fr->m_expr_spos);
+            pattern_stack().shrink(fr->m_pat_spos);
+            nopattern_stack().shrink(fr->m_nopat_spos);
+            symbol_stack().shrink(fr->m_sym_spos);
+            sort_stack().shrink(fr->m_sort_spos);
+            m_env.end_scope();
+            SASSERT(num_decls <= m_num_bindings);
+            m_num_bindings -= num_decls;
+
+            expr_stack().push_back(new_q);
+            m_stack.deallocate(fr);
+            m_num_expr_frames--;
         }
 
         void pop_quant_frame(quant_frame * fr) {
@@ -2016,6 +2118,9 @@ namespace smt2 {
                 break;
             case EF_MATCH:
                 pop_match_frame(static_cast<match_frame*>(fr));
+                break;
+            case EF_LAMBDA:
+                pop_lambda_frame(static_cast<lambda_frame*>(fr));
                 break;
             case EF_QUANT:
                 pop_quant_frame(static_cast<quant_frame*>(fr));
@@ -2230,7 +2335,7 @@ namespace smt2 {
         }
 
         void parse_define_fun_rec() {
-            // ( define-fun-rec hfun_defi )
+            // ( st  hfun_defi )
             SASSERT(curr_is_identifier());
             SASSERT(curr_id() == m_define_fun_rec);
             SASSERT(m_num_bindings == 0);
@@ -2977,6 +3082,7 @@ namespace smt2 {
             m_define_fun_rec("define-fun-rec"),
             m_define_funs_rec("define-funs-rec"),
             m_match("match"),
+            m_lambda("lambda"),
             m_underscore("_"),
             m_num_open_paren(0),
             m_current_file(filename) {

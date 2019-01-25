@@ -385,6 +385,29 @@ quantifier::quantifier(bool forall, unsigned num_decls, sort * const * decl_sort
         memcpy(const_cast<expr **>(get_no_patterns()), no_patterns, sizeof(expr *) * num_no_patterns);
 }
 
+lambda::lambda(unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names, expr * body,
+               int weight, symbol const & qid, symbol const & skid, unsigned num_patterns, expr * const * patterns,
+               unsigned num_no_patterns, expr * const * no_patterns):
+    expr(AST_LAMBDA),
+    m_num_decls(num_decls),
+    m_expr(body),
+    m_depth(::get_depth(body) + 1),
+    m_weight(weight),
+    m_has_unused_vars(true),
+    m_has_labels(::has_labels(body)),
+    m_qid(qid),
+    m_skid(skid),
+    m_num_patterns(num_patterns),
+    m_num_no_patterns(num_no_patterns) {
+    SASSERT(m_num_patterns == 0 || m_num_no_patterns == 0);
+
+    memcpy(const_cast<sort **>(get_decl_sorts()), decl_sorts, sizeof(sort *) * num_decls);
+    memcpy(const_cast<symbol*>(get_decl_names()), decl_names, sizeof(symbol) * num_decls);
+    if (num_patterns != 0)
+        memcpy(const_cast<expr **>(get_patterns()), patterns, sizeof(expr *) * num_patterns);
+    if (num_no_patterns != 0)
+        memcpy(const_cast<expr **>(get_no_patterns()), no_patterns, sizeof(expr *) * num_no_patterns);
+}
 // -----------------------------------
 //
 // Auxiliary functions
@@ -571,9 +594,16 @@ unsigned get_node_hash(ast const * n) {
         c = to_quantifier(n)->get_expr()->hash();
         mix(a,b,c);
         return c;
-    default:
-        UNREACHABLE();
+    case AST_LAMBDA:
+        a = ast_array_hash(to_lambda(n)->get_decl_sorts(),
+                           to_lambda(n)->get_num_decls(),
+                           37);
+        b = to_quantifier(n)->get_num_patterns();
+        c = to_quantifier(n)->get_expr()->hash();
+        mix(a,b,c);
+        return c;
     }
+    UNREACHABLE();
     return 0;
 }
 
@@ -1447,6 +1477,12 @@ ast_manager::~ast_manager() {
                 mark_array_ref(mark, to_quantifier(n)->get_num_patterns(), to_quantifier(n)->get_patterns());
                 mark_array_ref(mark, to_quantifier(n)->get_num_no_patterns(), to_quantifier(n)->get_no_patterns());
                 break;
+            case AST_LAMBDA:
+                mark_array_ref(mark, to_lambda(n)->get_num_decls(), to_lambda(n)->get_decl_sorts());
+                mark.mark(to_lambda(n)->get_expr(), true);
+                mark_array_ref(mark, to_lambda(n)->get_num_patterns(), to_lambda(n)->get_patterns());
+                mark_array_ref(mark, to_lambda(n)->get_num_no_patterns(), to_lambda(n)->get_no_patterns());
+                break;
             }
         }
         for (ast * n : m_ast_table) {
@@ -1508,7 +1544,7 @@ void ast_manager::compress_ids() {
         asts.push_back(n);
     }
     m_ast_table.finalize();
-    for (ast* a : asts) 
+    for (ast* a : asts)
         m_ast_table.insert(a);
 }
 
@@ -1570,7 +1606,7 @@ void ast_manager::set_next_expr_id(unsigned id) {
             ++id;
             goto try_again;
         }
-    }    
+    }
 }
 
 unsigned ast_manager::get_node_size(ast const * n) { return ::get_node_size(n); }
@@ -1664,6 +1700,7 @@ bool ast_manager::slow_not_contains(ast const * n) {
 #endif
 
 ast * ast_manager::register_node_core(ast * n) {
+    SASSERT(n != nullptr);
     unsigned h = get_node_hash(n);
     n->m_hash = h;
 #ifdef Z3DEBUG
@@ -2344,6 +2381,37 @@ bool ast_manager::is_pattern(expr const * n, ptr_vector<expr> &args) {
     return true;
 }
 
+lambda * ast_manager::mk_lambda(unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names,
+                                    expr * body, int weight , symbol const & qid, symbol const & skid,
+                                    unsigned num_patterns, expr * const * patterns,
+                                    unsigned num_no_patterns, expr * const * no_patterns) {
+    SASSERT(body);
+    SASSERT(num_decls > 0);
+    if (num_patterns != 0 && num_no_patterns != 0)
+        throw ast_exception("simultaneous patterns and no-patterns not supported. TODO: FIXME");
+    DEBUG_CODE({
+            for (unsigned i = 0; i < num_patterns; ++i) {
+                TRACE("ast", tout << i << " " << mk_pp(patterns[i], *this) << "\n";);
+                SASSERT(is_pattern(patterns[i]));
+            }});
+    unsigned sz               = quantifier::get_obj_size(num_decls, num_patterns, num_no_patterns);
+    void * mem                = allocate_node(sz);
+    lambda * new_node = new (mem) lambda(num_decls, decl_sorts, decl_names, body,
+                                         weight, qid, skid, num_patterns, patterns,
+                                         num_no_patterns, no_patterns);
+    lambda * r = register_node(new_node);
+
+    if (m_trace_stream && r == new_node) {
+        *m_trace_stream << "[mk-lambda] #" << r->get_id() << " " << qid;
+        for (unsigned i = 0; i < num_patterns; ++i) {
+            *m_trace_stream << " #" << patterns[i]->get_id();
+        }
+        *m_trace_stream << " #" << body->get_id() << "\n";
+
+    }
+
+    return r;
+}
 
 quantifier * ast_manager::mk_quantifier(bool forall, unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names,
                                         expr * body, int weight , symbol const & qid, symbol const & skid,

@@ -355,9 +355,9 @@ public:
               unsigned num_parameters = 0, parameter const * parameters = nullptr, bool private_parameters = false):
         decl_info(family_id, k, num_parameters, parameters, private_parameters), m_num_elements(num_elements) {
     }
-    sort_info(sort_info const& other) : decl_info(other), m_num_elements(other.m_num_elements) {            
+    sort_info(sort_info const& other) : decl_info(other), m_num_elements(other.m_num_elements) {
     }
-    sort_info(decl_info const& di, sort_size const& num_elements) : 
+    sort_info(decl_info const& di, sort_size const& num_elements) :
         decl_info(di), m_num_elements(num_elements) {}
 
     ~sort_info() {}
@@ -433,7 +433,7 @@ std::ostream & operator<<(std::ostream & out, func_decl_info const & info);
 //
 // -----------------------------------
 
-typedef enum { AST_APP, AST_VAR, AST_QUANTIFIER, AST_SORT, AST_FUNC_DECL } ast_kind;
+typedef enum { AST_APP, AST_VAR, AST_QUANTIFIER, AST_LAMBDA, AST_SORT, AST_FUNC_DECL } ast_kind;
 char const * get_ast_kind_name(ast_kind k);
 
 class shared_occs_mark;
@@ -786,10 +786,77 @@ public:
 
 // -----------------------------------
 //
-// quantifier
+// lambda
 //
 // -----------------------------------
+class lambda : public expr {
+    friend class ast_manager;
 
+    unsigned            m_num_decls;
+    expr *              m_expr;
+    unsigned            m_depth;
+    // extra fields
+    int                 m_weight;
+    bool                m_has_unused_vars;
+    bool                m_has_labels;
+    symbol              m_qid;
+    symbol              m_skid;
+    unsigned            m_num_patterns;
+    unsigned            m_num_no_patterns;
+    char                m_patterns_decls[0];
+
+    static unsigned get_obj_size(unsigned num_decls, unsigned num_patterns, unsigned num_no_patterns) {
+        return sizeof(lambda) + num_decls * (sizeof(sort *) + sizeof(symbol)) +
+                (num_patterns + num_no_patterns) * sizeof(expr*);
+    }
+
+    lambda(unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names, expr * body,
+           int weight, symbol const & qid, symbol const & skid, unsigned num_patterns, expr * const * patterns,
+           unsigned num_no_patterns, expr * const * no_patterns);
+public:
+    unsigned get_num_decls() const { return m_num_decls; }
+    sort * const * get_decl_sorts() const { return reinterpret_cast<sort * const *>(m_patterns_decls); }
+    symbol const * get_decl_names() const { return reinterpret_cast<symbol const *>(get_decl_sorts() + m_num_decls); }
+    sort * get_decl_sort(unsigned idx) const { return get_decl_sorts()[idx]; }
+    symbol const & get_decl_name(unsigned idx) const { return get_decl_names()[idx]; }
+    expr * get_expr() const { return m_expr; }
+
+    unsigned get_depth() const { return m_depth; }
+
+    int get_weight() const { return m_weight; }
+    symbol const & get_qid() const { return m_qid; }
+    symbol const & get_skid() const { return m_skid; }
+    unsigned get_num_patterns() const { return m_num_patterns; }
+    expr * const * get_patterns() const { return reinterpret_cast<expr * const *>(get_decl_names() + m_num_decls); }
+    expr * get_pattern(unsigned idx) const { return get_patterns()[idx]; }
+    unsigned get_num_no_patterns() const { return m_num_no_patterns; }
+    expr * const * get_no_patterns() const { return reinterpret_cast<expr * const *>(get_decl_names() + m_num_decls); }
+    expr * get_no_pattern(unsigned idx) const { return get_no_patterns()[idx]; }
+    bool has_patterns() const { return m_num_patterns > 0 || m_num_no_patterns > 0; }
+    unsigned get_size() const { return get_obj_size(m_num_decls, m_num_patterns, m_num_no_patterns); }
+
+    bool may_have_unused_vars() const { return m_has_unused_vars; }
+    void set_no_unused_vars() { m_has_unused_vars = false; }
+
+    bool has_labels() const { return m_has_labels; }
+
+    unsigned get_num_children() const { return 1 + get_num_patterns() + get_num_no_patterns(); }
+    expr * get_child(unsigned idx) const {
+        SASSERT(idx < get_num_children());
+        if (idx == 0)
+            return get_expr();
+        else if (idx <= get_num_patterns())
+            return get_pattern(idx - 1);
+        else
+            return get_no_pattern(idx - get_num_patterns() - 1);
+    }
+};
+
+// -----------------------------------
+//
+// quantifiers: forall & exists
+//
+// -----------------------------------
 class quantifier : public expr {
     friend class ast_manager;
     bool                m_forall;
@@ -868,6 +935,7 @@ inline bool is_app(ast const * n)        { return n->get_kind() == AST_APP; }
 inline bool is_var(ast const * n)        { return n->get_kind() == AST_VAR; }
 inline bool is_var(ast const * n, unsigned& idx) { return is_var(n) && (idx = static_cast<var const*>(n)->get_idx(), true); }
 inline bool is_quantifier(ast const * n) { return n->get_kind() == AST_QUANTIFIER; }
+inline bool is_lambda(ast const * n)     { return n->get_kind() == AST_LAMBDA; }
 inline bool is_forall(ast const * n)     { return is_quantifier(n) && static_cast<quantifier const *>(n)->is_forall(); }
 inline bool is_exists(ast const * n)     { return is_quantifier(n) && static_cast<quantifier const *>(n)->is_exists(); }
 
@@ -884,6 +952,7 @@ inline expr *       to_expr(ast * n)       { SASSERT(is_expr(n)); return static_
 inline app *        to_app(ast * n)        { SASSERT(is_app(n)); return static_cast<app *>(n); }
 inline var *        to_var(ast * n)        { SASSERT(is_var(n)); return static_cast<var *>(n); }
 inline quantifier * to_quantifier(ast * n) { SASSERT(is_quantifier(n)); return static_cast<quantifier *>(n); }
+inline lambda     * to_lambda(ast * n)     { SASSERT(is_lambda(n)); return static_cast<lambda *>(n); }
 
 inline decl const *       to_decl(ast const * n)       { SASSERT(is_decl(n)); return static_cast<decl const *>(n); }
 inline sort const *       to_sort(ast const * n)       { SASSERT(is_sort(n)); return static_cast<sort const *>(n); }
@@ -892,6 +961,7 @@ inline expr const *       to_expr(ast const * n)       { SASSERT(is_expr(n)); re
 inline app const *        to_app(ast const * n)        { SASSERT(is_app(n)); return static_cast<app const *>(n); }
 inline var const *        to_var(ast const * n)        { SASSERT(is_var(n)); return static_cast<var const *>(n); }
 inline quantifier const * to_quantifier(ast const * n) { SASSERT(is_quantifier(n)); return static_cast<quantifier const *>(n); }
+inline lambda const * to_lambda(ast const * n) { SASSERT(is_lambda(n)); return static_cast<lambda const *>(n); }
 
 // -----------------------------------
 //
@@ -1046,7 +1116,7 @@ enum basic_op_kind {
 
     PR_HYPOTHESIS, PR_LEMMA, PR_UNIT_RESOLUTION, PR_IFF_TRUE, PR_IFF_FALSE, PR_COMMUTATIVITY, PR_DEF_AXIOM,
 
-    PR_DEF_INTRO, PR_APPLY_DEF, PR_IFF_OEQ, PR_NNF_POS, PR_NNF_NEG, PR_SKOLEMIZE, 
+    PR_DEF_INTRO, PR_APPLY_DEF, PR_IFF_OEQ, PR_NNF_POS, PR_NNF_NEG, PR_SKOLEMIZE,
     PR_MODUS_PONENS_OEQ, PR_TH_LEMMA, PR_HYPER_RESOLVE, LAST_BASIC_PR
 };
 
@@ -1592,7 +1662,7 @@ public:
     bool contains(ast * a) const { return m_ast_table.contains(a); }
 
     bool is_rec_fun_def(quantifier* q) const { return q->get_qid() == m_rec_fun; }
-    
+
     symbol const& rec_fun_qid() const { return m_rec_fun; }
 
     unsigned get_num_asts() const { return m_ast_table.size(); }
@@ -1604,7 +1674,7 @@ public:
             n->inc_ref();
         }
     }
-    
+
     void dec_ref(ast* n) {
         if (n) {
             n->dec_ref();
@@ -1873,6 +1943,10 @@ public:
     bool is_pattern(expr const *n, ptr_vector<expr> &args);
 
 public:
+    lambda * mk_lambda(unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names, expr * body,
+                           int weight = 0, symbol const & qid = symbol::null, symbol const & skid = symbol::null,
+                           unsigned num_patterns = 0, expr * const * patterns = nullptr,
+                           unsigned num_no_patterns = 0, expr * const * no_patterns = nullptr);
 
     quantifier * mk_quantifier(bool forall, unsigned num_decls, sort * const * decl_sorts, symbol const * decl_names, expr * body,
                                int weight = 0, symbol const & qid = symbol::null, symbol const & skid = symbol::null,
