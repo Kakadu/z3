@@ -632,7 +632,7 @@ namespace datalog {
     }
 
     void dl_decl_plugin::get_sort_names(svector<builtin_name> & sort_names, symbol const & logic) {
-
+        // TODO: add arrow here
     }
 
 
