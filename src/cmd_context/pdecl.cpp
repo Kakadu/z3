@@ -170,9 +170,9 @@ public:
     char const * hcons_kind() const override { return "psort_var"; }
     unsigned hcons_hash() const override { return hash_u_u(m_num_params, m_idx); }
     bool hcons_eq(psort const * other) const override {
-        return 
-            other->hcons_kind() == hcons_kind() && 
-            get_num_params() == other->get_num_params() && 
+        return
+            other->hcons_kind() == hcons_kind() &&
+            get_num_params() == other->get_num_params() &&
             m_idx == static_cast<psort_var const *>(other)->m_idx;
     }
     void display(std::ostream & out) const override {
@@ -345,6 +345,13 @@ void psort_user_decl::display(std::ostream & out) const {
     out << ")";
 }
 
+
+sort * psort_arrow_decl::instantiate(pdecl_manager & m, unsigned n, sort * const * s) {
+    SASSERT(n == 2);
+    //throw default_exception("not implemented %s", __PRETTY_FUNCTION__);
+    throw default_exception("not implemented psort_arrow_decl::instantiate");
+    //return m.instantiate_datatype(this, m_name, n, s);
+}
 // -------------------
 // psort_dt_decl
 
@@ -504,7 +511,7 @@ bool pconstructor_decl::fix_missing_refs(dictionary<int> const & symbol2idx, sym
 
 constructor_decl * pconstructor_decl::instantiate_decl(pdecl_manager & m, sort * const * s) {
     ptr_buffer<accessor_decl> as;
-    for (paccessor_decl* a : m_accessors) 
+    for (paccessor_decl* a : m_accessors)
         as.push_back(a->instantiate_decl(m, s));
     return mk_constructor_decl(m_name, m_recogniser_name, as.size(), as.c_ptr());
 }
@@ -532,7 +539,7 @@ void pdatatype_decl::finalize(pdecl_manager & m) {
 }
 
 bool pdatatype_decl::has_missing_refs(symbol & missing) const {
-    for (auto c : m_constructors) 
+    for (auto c : m_constructors)
         if (c->has_missing_refs(missing))
             return true;
     return false;
@@ -641,7 +648,7 @@ bool pdatatype_decl::commit(pdecl_manager& m) {
     sort_ref_vector sorts(m.m());
     bool is_ok = m.get_dt_plugin()->mk_datatypes(1, &d_ptr, m_num_params, ps.c_ptr(), sorts);
     if (is_ok && m_num_params == 0) {
-        m.notify_new_dt(sorts.get(0), this);        
+        m.notify_new_dt(sorts.get(0), this);
     }
     return is_ok;
 }
@@ -667,9 +674,9 @@ bool pdatatypes_decl::fix_missing_refs(symbol & missing) {
     TRACE("fix_missing_refs", tout << "pdatatypes_decl::fix_missing_refs\n";);
     dictionary<int> symbol2idx;
     int idx = 0;
-    for (pdatatype_decl* d : m_datatypes) 
+    for (pdatatype_decl* d : m_datatypes)
         symbol2idx.insert(d->get_name(), idx++);
-    for (pdatatype_decl* d : m_datatypes) 
+    for (pdatatype_decl* d : m_datatypes)
         if (!d->fix_missing_refs(symbol2idx, missing))
             return false;
     return true;
@@ -713,7 +720,7 @@ bool pdatatypes_decl::commit(pdecl_manager& m) {
         sort_ref_vector ps(m.m());
         for (unsigned i = 0; i < d->get_num_params(); ++i) {
             ps.push_back(m.m().mk_uninterpreted_sort(symbol(i), 0, nullptr));
-        }        
+        }
         dts.m_buffer.push_back(d->instantiate_decl(m, ps.c_ptr()));
     }
     sort_ref_vector sorts(m.m());
@@ -722,7 +729,7 @@ bool pdatatypes_decl::commit(pdecl_manager& m) {
         for (unsigned i = 0; i < m_datatypes.size(); ++i) {
             pdatatype_decl* d = m_datatypes[i];
             if (d->get_num_params() == 0) {
-                m.notify_new_dt(sorts.get(i), this);        
+                m.notify_new_dt(sorts.get(i), this);
             }
         }
     }
@@ -918,9 +925,12 @@ psort_decl * pdecl_manager::mk_psort_user_decl(unsigned num_params, symbol const
 }
 
 psort_decl * pdecl_manager::mk_psort_dt_decl(unsigned num_params, symbol const & n) {
-    return new (a().allocate(sizeof(psort_dt_decl))) psort_dt_decl(m_id_gen.mk(), num_params, *this, n);    
+    return new (a().allocate(sizeof(psort_dt_decl))) psort_dt_decl(m_id_gen.mk(), num_params, *this, n);
 }
 
+psort_decl * pdecl_manager::mk_psort_arrow_decl() {
+    return new (a().allocate(sizeof(psort_arrow_decl))) psort_arrow_decl(m_id_gen.mk(), *this);
+}
 
 psort_decl * pdecl_manager::mk_psort_builtin_decl(symbol const & n, family_id fid, decl_kind k) {
     return new (a().allocate(sizeof(psort_builtin_decl))) psort_builtin_decl(m_id_gen.mk(), *this, n, fid, k);

@@ -543,7 +543,7 @@ static void install_dl_cmds_aux(cmd_context& ctx, dl_collected_cmds* collected_c
 
 //    ctx.insert(alloc(dl_arrow_cmd, dl_ctx));
 //    ctx.insert(alloc(dl_lambda_cmd, dl_ctx));
-//    ctx.pm().a()
+
 //    psort_decl arr_sort_decl();
 //    ctx.insert(arr_sort_decl);
 }

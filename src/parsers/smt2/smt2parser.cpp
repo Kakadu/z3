@@ -775,7 +775,7 @@ namespace smt2 {
                     }
                 }
             }
-            while (num_frames > 0);
+            while (num_frames > 0); // TODO: WTF
             SASSERT(sort_stack().size() == stack_pos + 1);
         }
 

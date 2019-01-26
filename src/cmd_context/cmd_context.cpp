@@ -610,6 +610,8 @@ void cmd_context::register_builtin_sorts(decl_plugin * p) {
         psort_decl * d = pm().mk_psort_builtin_decl(n.m_name, fid, n.m_kind);
         insert(d);
     }
+
+    insert( pm().mk_psort_arrow_decl() );
 }
 
 void cmd_context::register_builtin_ops(decl_plugin * p) {
@@ -1089,7 +1091,7 @@ void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * arg
             for (unsigned i = 0; i < num_args; ++i, first = false) {
                 if (!first) buffer << " ";
                 buffer << mk_pp(m().get_sort(args[i]), m());
-            }            
+            }
             buffer << ") ";
             if (range) buffer << mk_pp(range, m()) << " ";
             for (unsigned i = 0; i < fs.get_num_entries(); ++i) {
@@ -1241,7 +1243,7 @@ void cmd_context::insert_aux_pdecl(pdecl * p) {
     m_aux_pdecls.push_back(p);
 }
 
-void cmd_context::reset(bool finalize) {    
+void cmd_context::reset(bool finalize) {
     m_processing_pareto = false;
     m_logic = symbol::null;
     m_check_sat_result = nullptr;
@@ -1329,7 +1331,7 @@ void cmd_context::push() {
     s.m_aux_pdecls_lim         = m_aux_pdecls.size();
     s.m_assertions_lim         = m_assertions.size();
     m().limit().push(m_params.rlimit());
-    if (m_solver) 
+    if (m_solver)
         m_solver->push();
     if (m_opt)
         m_opt->push();
@@ -1587,12 +1589,12 @@ void cmd_context::display_dimacs() {
             m_solver->check_sat(0, nullptr);
         }
         catch (...) {
-            gparams::set("sat.dimacs.display", "false");        
+            gparams::set("sat.dimacs.display", "false");
             params_ref p;
             m_solver->updt_params(p);
             throw;
         }
-        gparams::set("sat.dimacs.display", "false");        
+        gparams::set("sat.dimacs.display", "false");
         params_ref p;
         m_solver->updt_params(p);
     }
@@ -1670,11 +1672,11 @@ struct contains_underspecified_op_proc {
     struct found {};
     family_id m_array_fid;
     datatype_util m_dt;
-    
+
     contains_underspecified_op_proc(ast_manager & m):m_array_fid(m.mk_family_id("array")), m_dt(m) {}
     void operator()(var * n)        {}
     void operator()(app * n)        {
-        if (m_dt.is_accessor(n->get_decl())) 
+        if (m_dt.is_accessor(n->get_decl()))
             throw found();
         if (n->get_family_id() != m_array_fid)
             return;

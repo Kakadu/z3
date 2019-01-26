@@ -114,6 +114,20 @@ public:
     bool is_dt_decl() const { return m_psort_kind == PSORT_DT; }
 };
 
+
+class psort_arrow_decl : public psort_decl {
+protected:
+    friend class pdecl_manager;
+    psort_arrow_decl(unsigned id, pdecl_manager & m)
+        : psort_decl(id, 2, m, symbol("->"))
+    {
+
+    }
+    size_t obj_size() const override { return sizeof(psort_arrow_decl); }
+public:
+    sort * instantiate(pdecl_manager & m, unsigned n, sort * const * s) override;
+};
+
 class psort_user_decl : public psort_decl {
 protected:
     friend class pdecl_manager;
@@ -308,6 +322,7 @@ public:
     psort * mk_psort_app(unsigned num_params, psort_decl * d, unsigned num_args, psort * const * args);
     psort * mk_psort_app(psort_decl * d);
     psort_decl * mk_psort_dt_decl(unsigned num_params, symbol const & n);
+    psort_decl * mk_psort_arrow_decl();
     psort_decl * mk_psort_user_decl(unsigned num_params, symbol const & n, psort * def);
     psort_decl * mk_psort_builtin_decl(symbol const & n, family_id fid, decl_kind k);
     paccessor_decl * mk_paccessor_decl(unsigned num_params, symbol const & s, ptype const & p);
