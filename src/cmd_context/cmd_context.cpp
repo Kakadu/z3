@@ -611,7 +611,9 @@ void cmd_context::register_builtin_sorts(decl_plugin * p) {
         insert(d);
     }
 
-    insert( pm().mk_psort_arrow_decl() );
+
+    std::cout << "Inserting arrow sortn\n";
+    insert( pm().mk_psort_arrow_decl(p->get_family_id()) );
 }
 
 void cmd_context::register_builtin_ops(decl_plugin * p) {
@@ -816,6 +818,10 @@ void cmd_context::insert(symbol const & s, func_decl * f) {
 
 void cmd_context::insert(symbol const & s, psort_decl * p) {
     if (m_psort_decls.contains(s)) {
+        if (s == "->") {
+            //std::cerr << "Inserting arrow sort second time. ACHTUNG!\n";
+            return;
+        }
         throw cmd_exception("sort already defined ", s);
     }
     pm().inc_ref(p);
@@ -1023,8 +1029,10 @@ void cmd_context::mk_const(symbol const & s, expr_ref & result) const {
     mk_app(s, 0, nullptr, 0, nullptr, nullptr, result);
 }
 
-void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * args, unsigned num_indices, parameter const * indices, sort * range,
+void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * args, 
+                         unsigned num_indices, parameter const * indices, sort * range,
                          expr_ref & result) const {
+    std::cout << __PRETTY_FUNCTION__ << "\n";
     builtin_decl d;
     if (m_builtin_decls.find(s, d)) {
         family_id fid = d.m_fid;
@@ -1064,7 +1072,7 @@ void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * arg
     func_decls fs;
     if (!m_func_decls.find(s, fs)) {
         if (num_args == 0) {
-            throw cmd_exception("unknown constant ", s);
+            throw cmd_exception("unknown constant XXX ", s);
         }
         else
             throw cmd_exception("unknown function/constant ", s);
@@ -1075,7 +1083,7 @@ void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * arg
             throw cmd_exception("ambiguous constant reference, more than one constant with the same sort, use a qualified expression (as <symbol> <sort>) to disumbiguate ", s);
         func_decl * f = fs.first();
         if (f == nullptr) {
-            throw cmd_exception("unknown constant ", s);
+            throw cmd_exception("unknown constant YYY ", s);
         }
         if (f->get_arity() != 0)
             throw cmd_exception("invalid function application, missing arguments ", s);
@@ -1085,7 +1093,7 @@ void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * arg
         func_decl * f = fs.find(m(), num_args, args, range);
         if (f == nullptr) {
             std::ostringstream buffer;
-            buffer << "unknown constant " << s << " ";
+            buffer << "unknown constant ZZZ" << s << " ";
             buffer << " (";
             bool first = true;
             for (unsigned i = 0; i < num_args; ++i, first = false) {

@@ -774,8 +774,7 @@ namespace smt2 {
                         num_frames++;
                     }
                 }
-            }
-            while (num_frames > 0); // TODO: WTF
+            } while (num_frames > 0);
             SASSERT(sort_stack().size() == stack_pos + 1);
         }
 
@@ -1270,6 +1269,7 @@ namespace smt2 {
         }
 
         unsigned parse_sorted_vars() {
+            std::cout << __FUNCTION__ << "\n";
             unsigned num = 0;
             unsigned sym_spos = symbol_stack().size();
             unsigned sort_spos = sort_stack().size();
@@ -1280,14 +1280,14 @@ namespace smt2 {
                 check_lparen_next("invalid sorted variable, '(' expected");
                 check_identifier("invalid sorted variable, symbol expected");
                 symbol_stack().push_back(curr_id());
-                TRACE("parse_sorted_vars", tout << "push_back curr_id(): " << curr_id() << "\n";);
+                std::cout << "push_back curr_id(): " << curr_id() << "\n";
                 next();
                 parse_sort("invalid sorted variables");
                 check_rparen_next("invalid sorted variable, ')' expected");
                 num++;
             }
             next();
-            TRACE("parse_sorted_vars", tout << "[after] symbol_stack().size(): " << symbol_stack().size() << "\n";);
+            std::cout << "[after] symbol_stack().size(): " << symbol_stack().size() << "\n";
             symbol const * sym_it  = symbol_stack().c_ptr() + sym_spos;
             sort * const * sort_it = sort_stack().c_ptr() + sort_spos;
             m_num_bindings += num;
@@ -1296,7 +1296,7 @@ namespace smt2 {
                 --i;
                 var * v = m().mk_var(i, *sort_it);
                 expr_stack().push_back(v); // prevent v from being deleted
-                TRACE("parse_sorted_vars", tout << "registering " << *sym_it << " -> " << mk_pp(v, m()) << ", num: " << num << ", i: " << i << "\n";);
+                std::cout << "registering " << *sym_it << " -> " << mk_pp(v, m()) << ", num: " << num << ", i: " << i << "\n";
                 m_env.insert(*sym_it, local(v, m_num_bindings));
                 SASSERT(m_env.contains(*sym_it));
                 ++sort_it;
@@ -1341,7 +1341,7 @@ namespace smt2 {
          * (lambda  ((e1 s1) ... (em+1 sm+1)) t)
          */
         void push_lambda_frame() {
-            // TODO:
+            std::cout << __FUNCTION__ << "\n";
             SASSERT(curr_is_identifier() );
             SASSERT(curr_id_is_lambda() );
 
@@ -1849,9 +1849,11 @@ namespace smt2 {
         }
 
         void push_expr_frame(expr_frame * curr) {
+            std::cout << __FUNCTION__ << "\n";
+            enable_trace("push_expr_frame");
             SASSERT(curr_is_lparen());
             next();
-            TRACE("push_expr_frame", tout << "push_expr_frame(), curr(): " << m_curr << "\n";);
+            std::cout << "push_expr_frame(), curr(): " << m_curr << "\n";
             if (curr_is_identifier()) {
                 TRACE("push_expr_frame", tout << "push_expr_frame(), curr_id(): " << curr_id() << "\n";);
                 if (curr_id_is_let()) {
@@ -1876,6 +1878,7 @@ namespace smt2 {
                     push_match_frame();
                 }
                 else if (curr_id_is_lambda()) {
+                    std::cout << "got a lambda\n";
                     push_lambda_frame();
                 }
                 else {
@@ -1953,6 +1956,7 @@ namespace smt2 {
         }
 
         void pop_lambda_frame(lambda_frame* fr) {
+            std::cout << __FUNCTION__;
             SASSERT(pattern_stack().size() >= fr->m_pat_spos);
             SASSERT(nopattern_stack().size() >= fr->m_nopat_spos);
             SASSERT(symbol_stack().size() >= fr->m_sym_spos);
@@ -3194,6 +3198,7 @@ namespace smt2 {
 
 bool parse_smt2_commands(cmd_context & ctx, std::istream & is, bool interactive, params_ref const & ps, char const * filename) {
     smt2::parser p(ctx, is, interactive, ps, filename);
+    enable_trace("parse_sorted_vars");
     return p();
 }
 

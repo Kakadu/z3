@@ -348,9 +348,17 @@ void psort_user_decl::display(std::ostream & out) const {
 
 sort * psort_arrow_decl::instantiate(pdecl_manager & m, unsigned n, sort * const * s) {
     SASSERT(n == 2);
-    //throw default_exception("not implemented %s", __PRETTY_FUNCTION__);
-    throw default_exception("not implemented psort_arrow_decl::instantiate");
-    //return m.instantiate_datatype(this, m_name, n, s);
+    
+    //throw default_exception("not implemented psort_arrow_decl::instantiate");
+    
+    
+    buffer<parameter> params;
+    for (unsigned i = 0; i < n; i++)
+        params.push_back(parameter(s[i]));
+    const unsigned m_kind = 666; // TODO: understand what the kind is
+    sort * r = m.m().mk_sort(m_fid, m_kind, n, params.c_ptr());
+    m.save_info(r, this, n, s);
+    return r;
 }
 // -------------------
 // psort_dt_decl
@@ -928,8 +936,8 @@ psort_decl * pdecl_manager::mk_psort_dt_decl(unsigned num_params, symbol const &
     return new (a().allocate(sizeof(psort_dt_decl))) psort_dt_decl(m_id_gen.mk(), num_params, *this, n);
 }
 
-psort_decl * pdecl_manager::mk_psort_arrow_decl() {
-    return new (a().allocate(sizeof(psort_arrow_decl))) psort_arrow_decl(m_id_gen.mk(), *this);
+psort_decl * pdecl_manager::mk_psort_arrow_decl(const family_id fid) {
+    return new (a().allocate(sizeof(psort_arrow_decl))) psort_arrow_decl(m_id_gen.mk(), *this, fid);
 }
 
 psort_decl * pdecl_manager::mk_psort_builtin_decl(symbol const & n, family_id fid, decl_kind k) {
