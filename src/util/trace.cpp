@@ -29,7 +29,9 @@ static str_hashtable* g_enabled_trace_tags = nullptr;
 static str_hashtable& get_enabled_trace_tags() {
     if (!g_enabled_trace_tags) {
         g_enabled_trace_tags = alloc(str_hashtable);
+        g_enabled_trace_tags->insert_if_not_there("kakadu");
     }
+    
     return *g_enabled_trace_tags;
 }
 

@@ -318,6 +318,8 @@ func_decl::func_decl(symbol const & name, unsigned arity, sort * const * domain,
     m_range(range) {
     if (arity != 0)
         memcpy(const_cast<sort **>(get_domain()), domain, sizeof(sort *) * arity);
+    std::cout << __func__ << " " << name <<
+                 " created. arity = " << arity << "\n";
 }
 
 // -----------------------------------
@@ -1986,6 +1988,8 @@ func_decl * ast_manager::mk_func_decl(symbol const & name, unsigned arity, sort 
     SASSERT(arity == 1 || info == 0 || !info->is_injective());
     SASSERT(arity == 2 || info == 0 || !info->is_associative());
     SASSERT(arity == 2 || info == 0 || !info->is_commutative());
+    TRACE("kakadu", tout << __func__ << " " << name << " " << arity << "\n";);
+    
     unsigned sz               = func_decl::get_obj_size(arity);
     void * mem                = allocate_node(sz);
     func_decl * new_node = new (mem) func_decl(name, arity, domain, range, info);
@@ -2199,6 +2203,15 @@ app * ast_manager::mk_app(func_decl * decl, unsigned num_args, expr * const * ar
         decl->get_arity() != num_args && !decl->is_right_associative() &&
         !decl->is_left_associative() && !decl->is_chainable();
 
+    if (type_error) {
+        std::cout << "decl->get_arity()" << decl->get_arity() << "\n";
+        std::cout << "num_args" << num_args << "\n";
+        std::cout << !decl->is_right_associative() << "\n";
+        std::cout << !decl->is_left_associative() << "\n";
+        std::cout << !decl->is_chainable() << "\n";
+         
+        throw ast_exception("SHIT");
+    }
     type_error |= (decl->get_arity() != num_args && num_args < 2 &&
                    decl->get_family_id() == m_basic_family_id && !decl->is_associative());
 

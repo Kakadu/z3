@@ -1878,7 +1878,6 @@ namespace smt2 {
                     push_match_frame();
                 }
                 else if (curr_id_is_lambda()) {
-                    std::cout << "got a lambda\n";
                     push_lambda_frame();
                 }
                 else {

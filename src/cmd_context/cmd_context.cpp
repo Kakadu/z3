@@ -798,6 +798,8 @@ void cmd_context::insert(symbol const & s, func_decl * f) {
     }
     dictionary<func_decls>::entry * e = m_func_decls.insert_if_not_there2(s, func_decls());
     func_decls & fs = e->get_data().m_value;
+    
+    std::cout << "trying to insert func_decl with symbol=" << s << "\n";
     if (!fs.insert(m(), f)) {
         std::string msg = "invalid declaration, ";
         msg += f->get_arity() == 0 ? "constant" : "function";
@@ -1032,7 +1034,7 @@ void cmd_context::mk_const(symbol const & s, expr_ref & result) const {
 void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * args, 
                          unsigned num_indices, parameter const * indices, sort * range,
                          expr_ref & result) const {
-    std::cout << __PRETTY_FUNCTION__ << "\n";
+//    std::cout << __PRETTY_FUNCTION__ << "\n;
     builtin_decl d;
     if (m_builtin_decls.find(s, d)) {
         family_id fid = d.m_fid;
