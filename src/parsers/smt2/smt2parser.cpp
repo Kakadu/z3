@@ -1849,11 +1849,11 @@ namespace smt2 {
         }
 
         void push_expr_frame(expr_frame * curr) {
-            std::cout << __FUNCTION__ << "\n";
+//            std::cout << __FUNCTION__ << "\n";
             enable_trace("push_expr_frame");
             SASSERT(curr_is_lparen());
             next();
-            std::cout << "push_expr_frame(), curr(): " << m_curr << "\n";
+//            std::cout << "push_expr_frame(), curr(): " << m_curr << "\n";
             if (curr_is_identifier()) {
                 TRACE("push_expr_frame", tout << "push_expr_frame(), curr_id(): " << curr_id() << "\n";);
                 if (curr_id_is_let()) {

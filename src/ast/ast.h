@@ -433,7 +433,7 @@ std::ostream & operator<<(std::ostream & out, func_decl_info const & info);
 //
 // -----------------------------------
 
-typedef enum { AST_APP, AST_VAR, AST_QUANTIFIER, AST_LAMBDA, AST_SORT, AST_FUNC_DECL } ast_kind;
+typedef enum { AST_APP, AST_VAR, AST_QUANTIFIER, AST_LAMBDA, AST_SORT, AST_FUNC_DECL, AST_APP_COMPLEX } ast_kind;
 char const * get_ast_kind_name(ast_kind k);
 
 class shared_occs_mark;
@@ -660,6 +660,30 @@ struct app_flags {
     unsigned     m_ground:1;   // application does not have free variables or nested quantifiers.
     unsigned     m_has_quantifiers:1; // application has nested quantifiers.
     unsigned     m_has_labels:1; // application has nested labels.
+};
+
+// we invent this class to be able to apply not only func_decls
+// but also realtional variables
+class app_complex : public expr {
+    friend class ast_manager;
+    
+    expr *       m_head;
+    unsigned     m_num_args;
+    expr *       m_args[0];
+    
+    static unsigned get_obj_size(unsigned num_args) {
+        return num_args == 0 ? sizeof(app_complex) 
+                             : sizeof(app_complex) + num_args * sizeof(expr *) /*+ sizeof(app_flags)*/;
+    }
+    
+    app_complex(expr * decl, unsigned num_args, expr * const * args);
+public:
+    unsigned get_num_args() const { return m_num_args; }
+    expr * get_arg(unsigned idx) const { SASSERT(idx < m_num_args); return m_args[idx]; }
+    expr * const * get_args() const { return m_args; }
+    unsigned get_size() const { return get_obj_size(get_num_args()); }
+    expr * const * begin() const { return m_args; }
+    expr * const * end() const { return m_args + m_num_args; }    
 };
 
 class app : public expr {
@@ -1868,6 +1892,8 @@ public:
         expr * args[3] = { arg1, arg2, arg3 };
         return mk_app(decl, 3, args);
     }
+    
+    app_complex * mk_app_complex(expr * head, unsigned arity, expr * const * args);
 
     app * mk_const(func_decl * decl) {
         SASSERT(decl->get_arity() == 0);

@@ -1087,8 +1087,14 @@ void cmd_context::mk_app(symbol const & s, unsigned num_args, expr * const * arg
         if (f == nullptr) {
             throw cmd_exception("unknown constant YYY ", s);
         }
-        if (f->get_arity() != 0)
-            throw cmd_exception("invalid function application, missing arguments ", s);
+        if (f->get_arity() != 0) {
+//            std::cout << "functional value `" << s << "` detected. Inserting hack\n";
+//            std::cout << " num_args = " << num_args << ", "
+//                      << " num_indices = " << num_indices << "\n";
+            //throw cmd_exception("invalid function application, missing arguments ", s);
+            
+            result = m().mk_const(f);
+        }
         result = m().mk_const(f);
     }
     else {

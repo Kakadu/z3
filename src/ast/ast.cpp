@@ -318,8 +318,8 @@ func_decl::func_decl(symbol const & name, unsigned arity, sort * const * domain,
     m_range(range) {
     if (arity != 0)
         memcpy(const_cast<sort **>(get_domain()), domain, sizeof(sort *) * arity);
-    std::cout << __func__ << " " << name <<
-                 " created. arity = " << arity << "\n";
+//    std::cout << __func__ << " " << name <<
+//                 " created. arity = " << arity << "\n";
 }
 
 // -----------------------------------
@@ -351,6 +351,14 @@ app_flags app::g_constant_flags = mk_const_flags();
 app::app(func_decl * decl, unsigned num_args, expr * const * args):
     expr(AST_APP),
     m_decl(decl),
+    m_num_args(num_args) {
+    for (unsigned i = 0; i < num_args; i++)
+        m_args[i] = args[i];
+}
+
+app_complex::app_complex(expr * h, unsigned num_args, expr * const * args):
+    expr(AST_APP_COMPLEX),
+    m_head(h),
     m_num_args(num_args) {
     for (unsigned i = 0; i < num_args; i++)
         m_args[i] = args[i];
@@ -2210,7 +2218,7 @@ app * ast_manager::mk_app(func_decl * decl, unsigned num_args, expr * const * ar
         std::cout << !decl->is_left_associative() << "\n";
         std::cout << !decl->is_chainable() << "\n";
          
-        throw ast_exception("SHIT");
+//        throw ast_exception("SHIT");
     }
     type_error |= (decl->get_arity() != num_args && num_args < 2 &&
                    decl->get_family_id() == m_basic_family_id && !decl->is_associative());
@@ -2258,7 +2266,19 @@ app * ast_manager::mk_app(func_decl * decl, unsigned num_args, expr * const * ar
     return r;
 }
 
-
+app_complex * ast_manager::mk_app_complex(expr * head, unsigned num_args, expr * const * args) {
+    std::cout << "Creationg complex application. TODO: add checks for sorts\n";
+    
+    app_complex * r = nullptr;
+    app_complex * new_node = nullptr;
+    unsigned sz = app_complex::get_obj_size(num_args);
+    void * mem = allocate_node(sz);
+    
+    new_node = new (mem)app_complex(head, num_args, args);
+    r = register_node(new_node);
+    
+    return r;
+}
 
 func_decl * ast_manager::mk_fresh_func_decl(symbol const & prefix, symbol const & suffix, unsigned arity,
                                             sort * const * domain, sort * range) {

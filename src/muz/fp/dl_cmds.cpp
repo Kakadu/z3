@@ -461,8 +461,8 @@ public:
     }
 
     void set_next_arg(cmd_context & ctx, sort* s) override {
-        std::cout << "setting sort `" << "???" << "`for ext-cmd with " << 
-          s->get_info()->get_num_parameters() << "parameters\n";
+        //std::cout << "setting sort `" << "???" << "`for ext-cmd with " << 
+        //  s->get_info()->get_num_parameters() << "parameters\n";
         m_var_sort = s;
         ++m_arg_idx;
     }
